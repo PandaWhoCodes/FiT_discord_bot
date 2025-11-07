@@ -486,7 +486,7 @@ questions:
         weight: -2
       - text: "You tend to push them and need the adrenaline"
         weight: -1
-      - text: "Focused and you complete work on time"
+      - text: "come back to track and try to complete work on time"
         weight: 1
 
   - id: "jp_05"
