@@ -1,0 +1,26 @@
+# fly.toml app configuration file generated for fit-discord-bot
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+
+app = "fit-discord-bot"
+primary_region = "sjc"
+
+[build]
+  builder = "paketobuildpacks/builder:base"
+  buildpacks = ["gcr.io/paketo-buildpacks/python"]
+
+[env]
+  PORT = "8080"
+  ENVIRONMENT = "production"
+  LOG_LEVEL = "INFO"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = false
+  min_machines_running = 1
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512

@@ -19,7 +19,6 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
 # Virtual Environment
 venv/
@@ -39,24 +38,29 @@ env/
 .env.local
 .env.*.local
 
-# Database
+# Database (local only)
 *.db
 *.db-shm
 *.db-wal
 *.db-info
 *.sqlite
 *.sqlite3
-data/*.db
 
-# Logs
-*.log
-logs/
+# Git
+.git/
+.gitignore
+
+# Documentation
+docs/
+*.md
+!README.md
 
 # Testing
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
+test_*.py
 
 # MacOS
 .DS_Store
@@ -64,6 +68,7 @@ htmlcov/
 # Windows
 Thumbs.db
 
-# Deployment
-docs/RENDER_DEPLOYMENT.md
-docs/FLYIO_DEPLOYMENT.md
+# Deployment configs
+fly.toml
+render.yaml
+Procfile
