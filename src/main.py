@@ -12,9 +12,10 @@ from dotenv import load_dotenv
 
 from .analytics import store_message
 from .commands import handle_text_command, register_slash_commands
-from .database import init_database, close_database
+from .database import init_database, close_database, save_prayer
 from .models import UserSession
 from .personality import load_questions, load_profiles, get_dummy_questions, QuestionView
+from .prayer_extraction import init_xai_client, extract_prayer
 
 # Configure logging
 logging.basicConfig(
@@ -92,6 +93,35 @@ async def start_test(
     logger.info(f"✅ Message sent successfully (ID: {message.id})")
 
 
+async def handle_prayer_message(message: discord.Message) -> None:
+    """Handle messages in the prayer-wall channel."""
+    from datetime import datetime, timezone
+
+    logger.info(f"Processing potential prayer from {message.author.name}")
+
+    # Extract prayer using xAI
+    extracted = extract_prayer(message.content)
+
+    if extracted is None:
+        logger.debug(f"No prayer extracted from message {message.id}")
+        return
+
+    # Build prayer data
+    prayer_data = {
+        "message_id": str(message.id),
+        "discord_user_id": str(message.author.id),
+        "discord_username": f"{message.author.name}#{message.author.discriminator}",
+        "channel_id": str(message.channel.id),
+        "raw_message": message.content,
+        "extracted_prayer": extracted,
+        "posted_at": message.created_at.isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    # Save to database
+    save_prayer(prayer_data)
+
+
 async def async_main() -> None:
     """Async main entry point."""
     bot_token = os.getenv("DISCORD_BOT_TOKEN")
@@ -101,6 +131,9 @@ async def async_main() -> None:
 
     # Initialize database
     init_database()
+
+    # Initialize xAI client for prayer extraction
+    init_xai_client()
 
     # Load questions and profiles
     try:
@@ -161,6 +194,14 @@ async def async_main() -> None:
 
         # Store message for analytics
         await store_message(message)
+
+        # Handle prayers from prayer-wall channel
+        if (
+            hasattr(message.channel, "name")
+            and message.channel.name == "prayer-wall"
+            and not message.author.bot
+        ):
+            await handle_prayer_message(message)
 
         # Handle text commands
         await handle_text_command(message, command_context)

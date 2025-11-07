@@ -99,6 +99,37 @@ def init_database() -> None:
         """
         )
 
+        # Create prayers table for prayer management
+        db_conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS prayers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                message_id TEXT UNIQUE NOT NULL,
+                discord_user_id TEXT NOT NULL,
+                discord_username TEXT NOT NULL,
+                channel_id TEXT NOT NULL,
+                raw_message TEXT NOT NULL,
+                extracted_prayer TEXT NOT NULL,
+                posted_at TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """
+        )
+
+        # Create indexes for prayers table
+        db_conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_prayers_posted_at
+            ON prayers(posted_at)
+        """
+        )
+        db_conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_prayers_user_id
+            ON prayers(discord_user_id)
+        """
+        )
+
         db_conn.commit()
         db_conn.sync()
         logger.info("Database schema initialized")
@@ -194,6 +225,95 @@ def save_message(message_data: dict) -> None:
         db_conn.sync()
     except Exception as e:
         logger.error(f"Failed to save message: {e}")
+
+
+def save_prayer(prayer_data: dict) -> None:
+    """
+    Save prayer to database.
+
+    Args:
+        prayer_data: Dictionary containing prayer fields matching the schema
+    """
+    if db_conn is None:
+        logger.error("Database not initialized")
+        return
+
+    try:
+        db_conn.execute(
+            """
+            INSERT INTO prayers (
+                message_id, discord_user_id, discord_username,
+                channel_id, raw_message, extracted_prayer,
+                posted_at, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                prayer_data["message_id"],
+                prayer_data["discord_user_id"],
+                prayer_data["discord_username"],
+                prayer_data["channel_id"],
+                prayer_data["raw_message"],
+                prayer_data["extracted_prayer"],
+                prayer_data["posted_at"],
+                prayer_data["created_at"],
+            ],
+        )
+        db_conn.commit()
+        db_conn.sync()
+        logger.info(
+            f"Saved prayer from {prayer_data['discord_username']}: "
+            f"{prayer_data['extracted_prayer'][:50]}..."
+        )
+    except Exception as e:
+        logger.error(f"Failed to save prayer: {e}")
+
+
+def get_prayers_for_week(start_date: datetime, end_date: datetime) -> list[dict]:
+    """
+    Get all prayers posted within a date range.
+
+    Args:
+        start_date: Start of date range (inclusive)
+        end_date: End of date range (inclusive)
+
+    Returns:
+        List of prayer dictionaries with id, username, prayer text, and timestamp
+    """
+    if db_conn is None:
+        logger.error("Database not initialized")
+        return []
+
+    try:
+        cursor = db_conn.execute(
+            """
+            SELECT id, discord_username, extracted_prayer, posted_at
+            FROM prayers
+            WHERE posted_at BETWEEN ? AND ?
+            ORDER BY posted_at ASC
+            """,
+            [start_date.isoformat(), end_date.isoformat()],
+        )
+
+        rows = cursor.fetchall()
+        prayers = []
+        for row in rows:
+            prayers.append(
+                {
+                    "id": row[0],
+                    "discord_username": row[1],
+                    "extracted_prayer": row[2],
+                    "posted_at": row[3],
+                }
+            )
+
+        logger.info(
+            f"Retrieved {len(prayers)} prayers for week {start_date.date()} to {end_date.date()}"
+        )
+        return prayers
+
+    except Exception as e:
+        logger.error(f"Failed to get prayers for week: {e}")
+        return []
 
 
 def close_database() -> None:
